@@ -10,12 +10,12 @@ While working on the model constructing, I will try to move some features from m
 #### python env:
 
 | python version        | availability |
-| ------------- |:-------------:|
-
-|python 3.7| untested |
-|python 3.6| available |
-|< python 3.5 | untested     |
-|python 2.x| unavailable |
+| --------------------- |:-------------:|
+| python 3.8            | untested    |
+| python 3.7            | possible    |
+| python 3.6            | available   |
+| < python 3.5          | untested    |
+| python 2.x            | unavailable |
 
 
 #### install
@@ -57,11 +57,12 @@ LiaoAttack = ColorToMatch([537, 169, 1459, 963], [[(0, 0), (243, 178, 94)], [(33
  #### 御魂队员模式
  1. 同上
  2. 在任意界面运行`party_member.py`
- 
- 
+
  #### 业原火
  1. 锁定出战阵容
  2. 在开始之前的界面运行`yeyuanhuo.py`. 目前只支持痴
  
- 
+ #### 百鬼夜行
+ 1. 进入百鬼夜行准备界面，也就是有跳跳弟弟和跳跳妹妹的那个画面
+ 2. 运行`baiguiyexing.py`
  
