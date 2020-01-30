@@ -227,6 +227,7 @@ class Baiguiyexing:
             #     # 这个状态暂时检测不到
             #     pass
             elif state == "st_getting_bonus":
+                accept_invite()
                 self.get_bonus()
             elif state == "st_unknown":
                 accept_invite()
