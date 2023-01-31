@@ -1,4 +1,5 @@
-# Thie repo is no longer unmainteined.
+# Archived
+由于上游不再更新、[阴阳师官方不再提供游戏的 exe 可执行程序](https://github.com/luoy2/pyOnmyoji/issues/20)，而且我不再玩这游戏了，本 fork 切换为只读模式。
 
 # pyOnmyoji
 python play onmyoji(网易-阴阳师), folked win32 controller from SerpentAI
