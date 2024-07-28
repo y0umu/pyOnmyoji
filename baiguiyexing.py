@@ -16,6 +16,7 @@ from grabscreen import grab_screen
 from controller import click
 from findimg import accept_invite
 from utilities import random_sleep
+import random
 # from transitions import Machine
 
 class BaiguiyexingStateDecision:
@@ -35,33 +36,35 @@ class BaiguiyexingStateDecision:
         # img_st_doing_mamemaki = cv2.imread("res/mamemaki/st_doing_mamemaki.jpg")
         img_st_getting_bonus = cv2.imread("res/mamemaki/st_getting_bonus.jpg")
 
-        orb_st_getting_ready = cv2.ORB_create(nfeatures=200, nlevels=4, edgeThreshold=15, 
-                                    firstLevel=0, scoreType=cv2.ORB_FAST_SCORE, patchSize=15)
-        orb_st_choosing_boss = cv2.ORB_create(nfeatures=1000, nlevels=4, edgeThreshold=15, 
-                                    firstLevel=0, scoreType=cv2.ORB_FAST_SCORE, patchSize=15 )
-        # orb_st_doing_mamemaki = cv2.ORB_create(nfeatures=1000, nlevels=4, edgeThreshold=15, 
-        #                             firstLevel=0, scoreType=cv2.ORB_FAST_SCORE, patchSize=15 )
-        orb_st_getting_bonus  = cv2.ORB_create(nfeatures=200, nlevels=4, edgeThreshold=15, 
-                                    firstLevel=0, scoreType=cv2.ORB_FAST_SCORE, patchSize=15 )
-        
-        self.feature_extractors = {
-            "st_getting_ready": orb_st_getting_ready,
-            "st_choosing_boss": orb_st_choosing_boss,
-            # "st_doing_mamemaki": orb_st_doing_mamemaki,
-            "st_getting_bonus": orb_st_getting_bonus
-        }
-        self.descriptors = {
-            "st_getting_ready": orb_st_getting_ready.detectAndCompute(img_st_getting_ready, mask=None)[1],
-            "st_choosing_boss": orb_st_choosing_boss.detectAndCompute(img_st_choosing_boss, mask=None)[1],
+        # orb_st_getting_ready = cv2.ORB_create()
+        # orb_st_choosing_boss = cv2.ORB_create()
+        # # orb_st_doing_mamemaki = cv2.ORB_create()
+        # orb_st_getting_bonus  = cv2.ORB_create()
+        orb = cv2.ORB_create()
+        self.orb = orb
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        self.bf = bf
+
+        # self.feature_extractors = {
+        #     "st_getting_ready": orb_st_getting_ready,
+        #     "st_choosing_boss": orb_st_choosing_boss,
+        #     # "st_doing_mamemaki": orb_st_doing_mamemaki,
+        #     "st_getting_bonus": orb_st_getting_bonus
+        # }
+
+        self.descriptors_train = {
+            "st_getting_ready": orb.detectAndCompute(img_st_getting_ready, mask=None)[1],
+            "st_choosing_boss": orb.detectAndCompute(img_st_choosing_boss, mask=None)[1],
             # "st_doing_mamemaki": orb_st_doing_mamemaki.detectAndCompute(img_st_doing_mamemaki, mask=None)[1],
-            "st_getting_bonus": orb_st_getting_bonus.detectAndCompute(img_st_getting_bonus, mask=None)[1]
+            "st_getting_bonus": orb.detectAndCompute(img_st_getting_bonus, mask=None)[1]
         }
-        self.good_count_thresholds = {
-            "st_getting_ready": 10,
-            "st_choosing_boss": 20,
-            # "st_doing_mamemaki": 5,
-            "st_getting_bonus": 10
-        }
+        # self.good_count_thresholds = {
+        #     "st_getting_ready": 3,
+        #     "st_choosing_boss": 3,
+        #     # "st_doing_mamemaki": 5,
+        #     "st_getting_bonus": 3
+        # }
+        self.distance_thresh = 30
 
 
     def decide(self, in_img):
@@ -69,30 +72,52 @@ class BaiguiyexingStateDecision:
         decides if in_img indicates it is in one of the states
         '''
         # brute force 方法找匹配点
-        for st in BaiguiyexingStateDecision.states:
-            _kp, in_img_des = self.feature_extractors[st].detectAndCompute(in_img, mask=None)
-            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-            if in_img_des is None or len(in_img_des) == 0:
-                continue
-            matches = bf.knnMatch(self.descriptors[st], in_img_des, k=2)
-            good_count = 0
-            try:  # sometimes get ValueError: not enough values to unpack (expected 2, got 1)
-                for m,n in matches:
-                    if m.distance < 0.50 * n.distance:
-                        good_count += 1
-                if good_count > self.good_count_thresholds[st]:
-                    return st
-            except:
-                self.logger.warning(f"Got an exeception in self.decide, skipping")
+        # for st in BaiguiyexingStateDecision.states:
+        #     _kp, in_img_des = self.feature_extractors[st].detectAndCompute(in_img, mask=None)
+        #     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+        #     if in_img_des is None or len(in_img_des) == 0:
+        #         continue
+        #     matches = bf.knnMatch(self.descriptors[st], in_img_des, k=2)
+        #     good_count = 0
+        #     try:  # sometimes get ValueError: not enough values to unpack (expected 2, got 1)
+        #         for m,n in matches:
+        #             if m.distance < 0.50 * n.distance:
+        #                 good_count += 1
+        #         if good_count > self.good_count_thresholds[st]:
+        #             return st
+        #     except:
+        #         self.logger.warning(f"Got an exeception in self.decide, skipping")
+        match_st = "st_unknown"
+        for st, des0 in self.descriptors_train.items():
+            self.logger.debug(f'Testing {st}')
+            kp1, des1 = self.orb.detectAndCompute(in_img, mask=None)
+            matches = self.bf.match(des1, des0)
+            matches_sorted = sorted(matches, key=lambda m: m.distance)
+            top_k = int(0.1*len(matches_sorted))
+            top_matches = matches_sorted[:top_k]
+            _sum = 0
             
-        return "st_unknown"
+            min_distance = self.distance_thresh
+            for k, m in enumerate(top_matches):
+                # print(f'[{k}] distance == {m.distance}')
+                _sum += m.distance
+            avg = _sum / top_k
+            # print(f'avg distance == {avg}')
+            self.logger.debug(f'Average Hanning distance to {st} is {avg}')
+            if avg < min_distance and avg < self.distance_thresh:
+                match_st = st
+                min_distance = avg
+
+        return match_st
 
 
 class Baiguiyexing:
+
     '''
     百鬼夜行自动撒豆
     '''
-    def __init__(self):
+    def __init__(self, constants):
+        self.constants = constants
         self.logger = logging.getLogger('Baiguiyexing')
         # self.machine = Machine(model=self, states=Baiguiyexing.states, initial="st_getting_ready")
         # self.machine.add_transition(trigger="choose_boss", source="st_getting_ready", dest="st_choosing_boss")
@@ -107,39 +132,54 @@ class Baiguiyexing:
             constants.WINDOW_ATTRIBUTES["y_offset"] + constants.WINDOW_ATTRIBUTES["height"]
         ]
         self.coord_entry = (
-            821 + constants.WINDOW_ATTRIBUTES["x_offset"],
-            471 + constants.WINDOW_ATTRIBUTES["y_offset"]
+            int((1291/1493)*constants.WINDOW_ATTRIBUTES["width"]) + constants.WINDOW_ATTRIBUTES["x_offset"],
+            int((732/840)*constants.WINDOW_ATTRIBUTES["height"]) + constants.WINDOW_ATTRIBUTES["y_offset"]
         )   # “进入”按钮的坐标
         self.coord_ok = (
-            1055 + constants.WINDOW_ATTRIBUTES["x_offset"],
-            553 + constants.WINDOW_ATTRIBUTES["y_offset"]
+            int((1359/1493)*constants.WINDOW_ATTRIBUTES["width"]) + constants.WINDOW_ATTRIBUTES["x_offset"],
+            int((765/840)*constants.WINDOW_ATTRIBUTES["height"]) + constants.WINDOW_ATTRIBUTES["y_offset"]
         )   # “开始”按钮的坐标
-        self.coord_leaving = (
-            616 + constants.WINDOW_ATTRIBUTES["x_offset"],
-            25 + constants.WINDOW_ATTRIBUTES["y_offset"]
-        )   # 结算奖励时可点击退出的区域
+        # self.coord_leaving = (
+        #     616 + constants.WINDOW_ATTRIBUTES["x_offset"],
+        #     25 + constants.WINDOW_ATTRIBUTES["y_offset"]
+        # )   # 结算奖励时可点击退出的区域，这个区域应该是一个很大的随机区域，不可以是一个圆
 
         # 选择鬼王时三个鬼王的点击坐标
         self.coord_bosses = (
             (
-                298 + constants.WINDOW_ATTRIBUTES["x_offset"],
-                448 + constants.WINDOW_ATTRIBUTES["y_offset"]
+                int(398/1493*constants.WINDOW_ATTRIBUTES["width"]) + constants.WINDOW_ATTRIBUTES["x_offset"],
+                int(583/840*constants.WINDOW_ATTRIBUTES["height"]) + constants.WINDOW_ATTRIBUTES["y_offset"]
             ),
             (
-                572 + constants.WINDOW_ATTRIBUTES["x_offset"],
-                482 + constants.WINDOW_ATTRIBUTES["y_offset"]
+                int(754/1493*constants.WINDOW_ATTRIBUTES["width"]) + constants.WINDOW_ATTRIBUTES["x_offset"],
+                int(584/840*constants.WINDOW_ATTRIBUTES["height"]) + constants.WINDOW_ATTRIBUTES["y_offset"]
             ),
             (
-                865 + constants.WINDOW_ATTRIBUTES["x_offset"],
-                481 + constants.WINDOW_ATTRIBUTES["y_offset"]
+                int(1181/1493*constants.WINDOW_ATTRIBUTES["width"]) + constants.WINDOW_ATTRIBUTES["x_offset"],
+                int(583/840*constants.WINDOW_ATTRIBUTES["height"]) + constants.WINDOW_ATTRIBUTES["y_offset"]
             )
         )
     
+    @property
+    def coord_leaving(self):
+        left_f = 235/1493
+        right_f = 1236/1493
+        top_f = 790/840
+        bottom_f = 830/840
+        left = int(left_f * self.constants.WINDOW_ATTRIBUTES["width"])
+        right = int(right_f * self.constants.WINDOW_ATTRIBUTES["width"])
+        top = int(top_f * self.constants.WINDOW_ATTRIBUTES["height"])
+        bottom = int(bottom_f * self.constants.WINDOW_ATTRIBUTES["height"])
+        click_x = int(random.uniform(left, right))
+        click_y = int(random.uniform(top, bottom))
+        return click_x, click_y
+
     ##############################################
     # get current state
     ##############################################
     def get_state(self):
         img_grabbed = grab_screen(region=self.win_region, use_channel_rgb=False)
+        # cv2.imwrite('img_grabbed.png', img_grabbed)   # for debugging
         _state = self.state_judger.decide(img_grabbed)
         return _state
 
@@ -241,12 +281,12 @@ def main():
     user32.SetProcessDPIAware()
 
     logging.basicConfig(
-        level=0,
+        level=2,
         format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt="%Y-%m-%d %H:%M:%S")
 
-    constants.init_constants(u'阴阳师-网易游戏', move_window=False)
-    game = Baiguiyexing()
+    constants.init_constants(u'MuMu模拟器12', move_window=False)
+    game = Baiguiyexing(constants)
     game.start()
     
 
