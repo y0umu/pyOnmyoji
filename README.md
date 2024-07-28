@@ -1,6 +1,24 @@
-# Archived
-由于上游不再更新、[阴阳师官方不再提供游戏的 exe 可执行程序](https://github.com/luoy2/pyOnmyoji/issues/20)，而且我不再玩这游戏了，本 fork 切换为只读模式。
+# Notice
+由于 [原版pyOnmyoji](https://github.com/luoy2/pyOnmyoji) 不再更新、~~[阴阳师官方不再提供游戏的 exe 可执行程序](https://github.com/luoy2/pyOnmyoji/issues/20)，而且我不再玩这游戏了，本 fork 切换为只读模式。~~ 本项目基本不会得到什么维护。
 
+大部分代码需要找游戏运行的窗口，实验表明只要把`constants.init_constants` 初始化窗口参数改成 `u'MuMu模拟器12'` 有些代码仍然能复用，毕竟是基于机器视觉的自动化测试工具。
+
+## TODO （如果有人想要学习的话）
+* 更换底层的自动化测试框架。现在使用的 [Serpent.AI](https://github.com/SerpentAI/SerpentAI) 并不是经常维护。~~而且我感觉咱这也没 AI 啊。~~
+* 更新场景判别和目标定位方法：
+  - 场景判别也许可以训练专用神经网络模型（比如 darknet？）实现
+    - 我在百鬼夜行模块中的做法是找到场景的关键对象，用 ORB 求描述子，然后对当前场景也求描述子，通过描述子之间汉宁距离的远近判别当前场景。这法子太古老了不够智能。
+  - 如果自动化测试框架中能提供这样的服务最好。
+* 设计更加现代化的脚本检测回避系统：
+  - 现在的代码的回避机制相当原始，我发现的只有给点击坐标加随机参数，以及定时休息这两个。
+  - 所谓脚本检测回避系统应该让游戏行为更像真实的游戏玩家
+    - 比如打御魂副本的时候，没几个人会只刷本不看聊天区吧？
+      * OCR 识别聊天区裙友吹水的内容，喂给 [ollama](https://github.com/ollama/ollama) 等 LLM 工具生成合理的回复，并在聊天区与大家互动。
+* 记得 [搜索 Github](https://github.com/search?q=%E9%98%B4%E9%98%B3%E5%B8%88&type=repositories) 学习其他人的代码。
+
+以下是原 README。
+
+----
 # pyOnmyoji
 python play onmyoji(网易-阴阳师), folked win32 controller from SerpentAI
 
